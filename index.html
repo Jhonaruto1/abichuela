@@ -731,7 +731,8 @@
     var res = await fetch('/api/ranking', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000)
     });
     var data = null;
     try{ data = await res.json(); }catch(e){}
@@ -822,7 +823,7 @@
     rankingBox.style.display = '';
     if(rankingStatus) rankingStatus.textContent = 'Cargando ranking…';
     try{
-      var res = await fetch('/api/ranking');
+      var res = await fetch('/api/ranking', { signal: AbortSignal.timeout(10000) });
       var data = await res.json();
       if(!res.ok) throw new Error((data && data.error) || 'Error');
       renderRanking(data.entries || [], data.total || 0);
