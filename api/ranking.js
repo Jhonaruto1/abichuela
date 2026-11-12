@@ -17,6 +17,21 @@ import { put, list } from '@vercel/blob';
 
 const KEY = 'ranking.json';
 const MAX_ENTRIES = 200;
+const TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+
+// El token se pasa explícito en cada llamada al SDK: sin él, el SDK
+// prefiere la autenticación OIDC (VERCEL_OIDC_TOKEN + BLOB_STORE_ID) y
+// esa ruta se quedaba colgada sin responder en este proyecto.
+// Además, cada operación de Blob lleva un límite duro de 8 s: si el
+// almacén no responde, la función devuelve 500 rápido en vez de
+// colgarse hasta el límite de 300 s del runtime.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Tiempo agotado: ' + label)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function json(status, obj) {
   return new Response(JSON.stringify(obj), {
@@ -47,10 +62,17 @@ function sortEntries(entries) {
 }
 
 async function loadEntries() {
-  const { blobs } = await list({ prefix: KEY, limit: 10 });
+  const { blobs } = await withTimeout(
+    list({ prefix: KEY, limit: 10, token: TOKEN }),
+    8000,
+    'list',
+  );
   const blob = blobs.find((b) => b.pathname === KEY);
   if (!blob) return [];
-  const res = await fetch(blob.url, { cache: 'no-store' });
+  const res = await fetch(blob.url, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
   if (!res.ok) return [];
   const data = await res.json();
   if (!Array.isArray(data)) return [];
@@ -66,11 +88,16 @@ async function loadEntries() {
 }
 
 async function saveEntries(entries) {
-  await put(KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)), {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false,
-  });
+  await withTimeout(
+    put(KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)), {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      token: TOKEN,
+    }),
+    8000,
+    'put',
+  );
 }
 
 function publicList(entries) {
