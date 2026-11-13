@@ -1,56 +1,43 @@
-# Abichuela el Juego — versión pública con ranking (Vercel)
+# Abichuela el Juego — build para GitHub/Vercel
 
-Juego completo copiado de la versión publicada en GitHub Pages (mismo
-`index.html`, mismos `assets/`), más ranking compartido con servidor.
+Build estático del juego (React, compilado con Bun) + funciones serverless
+de `/api`. Es la versión completa que hoy vive en el artefacto de Muse,
+portada para publicarse desde el repo de GitHub en Vercel.
 
-## Qué cambia respecto a GitHub Pages
+## Contenido
 
-- **Nombre obligatorio:** el botón JUGAR empieza bloqueado. Cada jugador tiene
-  que escribir su apodo y tocar **Usar este apodo**; el apodo se reclama en el
-  servidor con una clave secreta guardada en ese celular (`localStorage`
-  `abichuela-device`). Si el apodo ya lo tiene otro jugador, el servidor
-  responde 409 y toca elegir otro. **Cambiar mi apodo** mueve el mismo
-  renglón (conserva récord y partidas) si el nombre nuevo está libre.
-- **Ranking compartido:** botón **🏆 RANKING** en el menú; consulta
-  `GET /api/ranking` y muestra el top 20 ordenado, con tu renglón marcado
-  y tu lugar. Al terminar cada partida se envía el puntaje con
-  `POST /api/ranking` (`action: "submit"`); si no hay conexión, el récord
-  queda guardado solo en el celular y se avisa en la pantalla de fin.
-- Lo demás queda igual: fondo de Guadalajara, cara de la amiga, tuberías
-  con tierra, 3 poderes de 10 s, un ítem aleatorio cada 15 tuberías
-  (corregido desde los 4-6 del paquete base, que era la versión vieja),
-  tonito chiptune y cámara de reacción.
-- **Modo local si no hay servidor:** si `/api/ranking` no existe (por
-  ejemplo, este mismo archivo servido desde GitHub Pages), el nombre se
-  exige igual antes de jugar, pero queda guardado solo en el celular y se
-  avisa que el ranking compartido está en la versión de Vercel. Así el
-  juego nunca queda bloqueado por falta de servidor.
+- `index.html` + `assets/` — el juego compilado (menú, ranking, ciclo de día,
+  monedas, estilos, logros, reto diario, poderes, música).
+- `api/ranking.js` — ranking compartido en Vercel Blob (`GET /api/ranking`,
+  `POST {action: 'claim'|'submit'|'rename'}`). Sin cambios respecto a la
+  versión que ya funciona en producción.
+- `api/ping.js` — diagnóstico simple del servidor (no toca el ranking).
+- `package.json` / `package-lock.json` — solo `@vercel/blob` (lo que usan
+  las funciones) y Node 22.x.
 
-## Archivos
+## Qué trae esta versión
 
-- `index.html` — juego + ranking (frontend).
-- `assets/` — `cara-amiga-pixel.png`, `cara-amiga.png`, `fondo-gdl.png`.
-- `api/ranking.js` — función serverless (Node, ESM) con Vercel Blob.
-- `package.json` — solo depende de `@vercel/blob`.
+- Ciclo de día: día → 3 atardeceres → 3 noches → día, con fundido de ~2.5 s.
+  El fondo cambia **cada 15 tuberías** (`?fondoCada=N` lo cambia para pruebas,
+  1..100).
+- Monedas entre tuberías, estilos Clásico / Dorado (100) / Neón (250),
+  5 logros, reto diario con +20 monedas, botón compartir récord.
+- Luciérnagas y estrellas fugaces de noche; menú compacto con caritas de
+  dificultad (😊😐😡) y cajita de logros con scroll interno.
+- Poderes de 10 s, ítem aleatorio cada 15 tuberías, dificultades y música
+  8-bit. Todo el estado local (monedas, estilos, logros, reto) se guarda en
+  el celular; el ranking compartido vive en Vercel Blob.
 
-## Despliegue en Vercel (desde el repo de GitHub)
+## Despliegue
 
-1. Sube esta carpeta al repo `Jhonaruto1/abichuela` (o a un repo nuevo) y
-   crea el proyecto en Vercel importándolo desde GitHub.
-2. En el proyecto de Vercel: **Storage → Create → Blob** y vincúlalo al
-   proyecto. Eso crea la variable `BLOB_READ_WRITE_TOKEN` (sin esa
-   variable la API responde 500 "El ranking no está configurado").
-3. Despliega. El ranking vive en el archivo público `ranking.json` del
-   Blob store; la primera vez la lista está vacía y se llena al jugar.
+Publicar esta carpeta como raíz del proyecto en Vercel (o copiar su
+contenido al repo `Jhonaruto1/abichuela`, rama main). Requiere la variable
+`BLOB_READ_WRITE_TOKEN`, que se crea sola al vincular el Blob store
+`abichuela-ranking` al proyecto (Storage → Blob). Sin ella, `/api/ranking`
+responde 500 y el juego sigue en modo local.
 
-## Desarrollo local
+## Reconstruir
 
-```bash
-npm install
-npx vercel dev   # sirve index.html y /api/ranking con el token de tu .env.local
-```
-
-Sin `BLOB_READ_WRITE_TOKEN` la página carga y el botón JUGAR queda
-bloqueado hasta reclamar un apodo; si el reclamo falla porque el servidor
-no está configurado, el juego entra en modo local (nombre obligatorio,
-récord solo en el celular) en lugar de quedarse bloqueado.
+El código fuente del puerto está en `src/` (junto a esta carpeta):
+`bun install && bun ./client/build.mjs` genera `src/client/dist/`, del que
+salen `index.html` + `assets/` de aquí.
