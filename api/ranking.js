@@ -100,6 +100,10 @@ async function saveEntries(entries) {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      // Sin esto, put() rechaza reescribir ranking.json cuando ya existe
+      // (por defecto tira error al sobreescribir). El primer reclamo
+      // creaba el archivo y todos los guardados siguientes fallaban 500.
+      allowOverwrite: true,
       token: TOKEN,
     }),
     8000,
