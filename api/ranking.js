@@ -76,7 +76,12 @@ async function loadEntries() {
   );
   const blob = blobs.find((b) => b.pathname === KEY);
   if (!blob) return [];
-  const res = await fetch(blob.url, {
+  // El archivo público se sirve por CDN con caché larga: sin un
+  // parámetro único, fetch devuelve la versión vieja y el ranking
+  // muestra puntajes y nombres atrasados (y el reclamo de un apodo
+  // ya tomado podía pasar como libre). El ?v= fuerza lectura fresca.
+  const url = blob.url + (blob.url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+  const res = await fetch(url, {
     cache: 'no-store',
     signal: AbortSignal.timeout(8000),
   });
@@ -104,6 +109,10 @@ async function saveEntries(entries) {
       // (por defecto tira error al sobreescribir). El primer reclamo
       // creaba el archivo y todos los guardados siguientes fallaban 500.
       allowOverwrite: true,
+      // La CDN cachea el archivo público hasta 1 mes por defecto; con
+      // 60 s el peor atraso visible queda en un minuto (el ?v= de la
+      // lectura ya fuerza fresco de todos modos).
+      cacheControlMaxAge: 60,
       token: TOKEN,
     }),
     8000,
